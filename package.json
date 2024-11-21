@@ -1,0 +1,23 @@
+{
+  "name": "resource_shutdown",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "^1.1.13"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.697.0",
+    "@aws-sdk/credential-providers": "^3.696.0",
+    "@types/aws-lambda": "^8.10.145"
+  },
+  "scripts": {
+    "prebuild": "rm -rf out",
+    "build": "bun build --entrypoint index.ts --target 'node' --outfile out/index.mjs",
+    "postbuild": "cd out && 7z a -tzip index.zip *.mjs && mv *.zip .. && cd .. && bun run deploy; rm -f *.zip",
+    "deploy": "aws lambda create-function --function-name resource-shutdown --runtime \"nodejs20.x\" --role $AWS_ROLE_ARN --zip-file \"fileb://index.zip\" --environment \"Variables={$VARS}\" --handler index.handler'",
+    "update": "rm -rf out && bun build --entrypoint index.ts --target 'node' --outfile out/index.mjs && cd out && 7z a -tzip index.zip *.mjs && aws lambda update-function-code --function-name resource-shutdown --zip-file \"fileb://index.zip\"; rm -f *.zip"
+  }
+}
