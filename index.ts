@@ -46,12 +46,12 @@ export const handler: Handler = async (event, context): Promise<string> => {
 
 const ec2list = async (json: ResourceDict): Promise<string> => {
     let message = '';
-    let empty_tag_list = '# タグ無し削除候補\n';
-    let remove_list = '';
-    let over_list = '';
-    let error_list = '';
+    let empty_tag_list = '# タグ無し削除\n';
+    let remove_list = '# 月末削除\n';
+    let over_list = '# 期限超過削除\n';
+    let error_list = '# エラー日付削除\n';
 
-    const removeIds: { [K: string]: string[] } = {};
+    let removeIds: { [K: string]: string[] } = {};
     for (const r of json.emptyTag.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1)) {
         const region: string = r.Region ?? '';
         let id: string = r.Arn ?? '';
@@ -98,6 +98,8 @@ const ec2list = async (json: ResourceDict): Promise<string> => {
             }
         };
     }
+
+    removeIds = {};
 
     if (empty_tag_list) message += empty_tag_list;
 
