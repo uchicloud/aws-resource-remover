@@ -21,7 +21,7 @@ const getThisMonth = (): Date => {
 export const handler: Handler = async (event, context): Promise<string> => {
     const command = new GetObjectCommand({
         Bucket: bucket,
-        Key: path.posix.join('delete-candidates', getThisMonth().toISOString().slice(0, 10), 'resources.json'),
+        Key: path.posix.join('delete-candidates', getThisMonth().toISOString().slice(0, 10), 'EC2 Instance', 'resources.json'),
     });
 
     const { Body } = await client.send(command);
