@@ -4,6 +4,8 @@ import { fromEnv } from "@aws-sdk/credential-providers";
 import type { Handler } from "aws-lambda";
 import type { Resource } from "@aws-sdk/client-resource-explorer-2";
 import path from "path";
+import { ignoreTags } from "./constants";
+import { send_message } from "./utility";
 
 type ResourceDict = {
     emptyTag: Resource[], // Nameタグのみのリソース
@@ -28,6 +30,8 @@ const getThisMonth = (): Date => {
 }
 
 export const handler: Handler = async (event, context): Promise<string> => {
+    const { skipNotify } = event;
+
     const command = new GetObjectCommand({
         Bucket: bucket,
         Key: path.posix.join('delete-candidates', getThisMonth().toISOString().slice(0, 10), 'EC2 Instance', 'resources.json'),
@@ -39,6 +43,9 @@ export const handler: Handler = async (event, context): Promise<string> => {
 
         const ec2message = await ec2list(json);
         console.log(ec2message);
+        if (!skipNotify) {
+            await send_message(ec2message);
+        }
     }
 
     return context.logStreamName;
@@ -52,6 +59,8 @@ const ec2list = async (json: ResourceDict): Promise<string> => {
     let error_list = '# エラー日付削除\n';
 
     let removeIds: { [K: string]: string[] } = {};
+
+    // タグ無し削除
     for (const r of json.emptyTag.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1)) {
         const region: string = r.Region ?? '';
         let id: string = r.Arn ?? '';
@@ -78,7 +87,7 @@ const ec2list = async (json: ResourceDict): Promise<string> => {
                 r.Instances?.forEach(i => {
                     const tags = i.Tags;
                     // Nameタグのみのリソース
-                    if (tags?.every(t => t?.Key === 'Name')) {
+                    if (tags?.every(t => ignoreTags.includes(t?.Key ?? ''))) {
                         const id = i.InstanceId ?? '';
                         const name = tags.find(t => t?.Key === 'Name')?.Value ?? '';
                         empty_tag_list += 
@@ -99,9 +108,23 @@ const ec2list = async (json: ResourceDict): Promise<string> => {
         };
     }
 
+    message += empty_tag_list;
     removeIds = {};
 
-    if (empty_tag_list) message += empty_tag_list;
+    // 月末削除
+    remove_list += '  todo: 月末削除の処理を追加\n';
+    message += remove_list;
+    removeIds = {};
+
+    // 期限超過削除
+    over_list += '  todo: 期限超過削除の処理を追加\n';
+    message += over_list;
+    removeIds = {};
+
+    // エラー日付削除
+    error_list += '  todo: エラー日付削除の処理を追加\n';
+    message += error_list;
+
 
     return message;
 }
