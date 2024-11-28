@@ -27,8 +27,6 @@ const getThisMonth = (): Date => {
     return now;
 }
 
-const ec2Clients: { [K: string]: EC2Client } = {};
-
 export const handler: Handler = async (event, context): Promise<string> => {
     const command = new GetObjectCommand({
         Bucket: bucket,
@@ -38,48 +36,70 @@ export const handler: Handler = async (event, context): Promise<string> => {
     const { Body } = await s3Client.send(command);
     if (Body) {
         const json: ResourceDict = JSON.parse(await Body.transformToString());
-        let empty_tag_list = '';
-        for (const r of json.emptyTag) {
-            const region: string = r.Region ?? '';
-            const name: string = r.Properties?.flatMap(p => (p.Data as { [K: string]: string }[])).find(d => d.Key === 'Name')?.Value ?? '';
-            let id: string = r.Arn ?? '';
-            // arnの末尾`i-[0-9a-z]{8,17}`を取得
-            const match = id.match(/i-[0-9a-z]{8,17}$/);
-            if (match) id = match[0];
 
-            const command = new DescribeInstancesCommand({
-            "InstanceIds": [id]
-            });
-            const ec2Client = ec2Clients[region] ?? (ec2Clients[region] = new EC2Client({
-                credentials: fromEnv(),
-                region: region,
-            }));
-            try {
-                const res = await ec2Client.send(command);
-                const tags = res.Reservations?.flatMap(r =>
-                    r.Instances?.flatMap(i => i.Tags));
-                if (tags?.every(t => t?.Key === 'Name')) {
-                    empty_tag_list += 
-`  削除:
-    - instance-id: ${id}
-      - Name: ${name}
-      - Region: ${region}\n`;
-                }
-            } catch (error) {
-                if ((error as any).errorType === 'InvalidInstanceID.NotFound') {
-                empty_tag_list += 
-`  削除済:
-    - instance-id: ${id}
-      - Name: ${name}\n`;
-                } else {
-                    console.error(error);
-                }
-            }
-        }
-        console.log(`
-# タグ無し削除候補
-${empty_tag_list}`);
+        const ec2message = await ec2list(json);
+        console.log(ec2message);
     }
 
     return context.logStreamName;
+}
+
+const ec2list = async (json: ResourceDict): Promise<string> => {
+    let message = '';
+    let empty_tag_list = '# タグ無し削除候補\n';
+    let remove_list = '';
+    let over_list = '';
+    let error_list = '';
+
+    const removeIds: { [K: string]: string[] } = {};
+    for (const r of json.emptyTag.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1)) {
+        const region: string = r.Region ?? '';
+        let id: string = r.Arn ?? '';
+        // arnの末尾`i-[0-9a-z]{8,17}`を取得
+        const match = id.match(/i-[0-9a-z]{8,17}$/);
+        if (match) id = match[0];
+        
+        if (!removeIds[region]) removeIds[region] = [];
+        removeIds[region].push(id);
+    }
+
+    for (const entries of Object.entries(removeIds)) {
+        const region = entries[0];
+        const command = new DescribeInstancesCommand({
+        "InstanceIds": [...entries[1]],
+        });
+        const ec2Client = new EC2Client({
+            credentials: fromEnv(),
+            region: region,
+        });
+        try {
+            const res = await ec2Client.send(command);
+            res.Reservations?.forEach(r =>
+                r.Instances?.forEach(i => {
+                    const tags = i.Tags;
+                    // Nameタグのみのリソース
+                    if (tags?.every(t => t?.Key === 'Name')) {
+                        const id = i.InstanceId ?? '';
+                        const name = tags.find(t => t?.Key === 'Name')?.Value ?? '';
+                        empty_tag_list += 
+`  削除:
+- instance-id: ${id}
+  - Name: ${name}
+  - Region: ${region}\n`;
+                    }
+                })
+            );
+        } catch (error) {
+            if ((error as any).errorType === 'InvalidInstanceID.NotFound') {
+                empty_tag_list += 
+`  削除済\n`;
+            } else {
+                console.error(error);
+            }
+        };
+    }
+
+    if (empty_tag_list) message += empty_tag_list;
+
+    return message;
 }
