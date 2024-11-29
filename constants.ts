@@ -12,6 +12,8 @@ export const messageDict: {[K: string]: string;} = {
     'resourcetype:ec2:instance_en': 'EC2 Instance',
     'resourcetype:rds:db': 'RDSインスタンス',
     'resourcetype:rds:db_en': 'RDS Instance',
+    'resourcetype:rds:cluster': 'RDSクラスター',
+    'resourcetype:rds:cluster_en': 'RDS Cluster',
 };
 
 export const ignoreTags: string[] = [
