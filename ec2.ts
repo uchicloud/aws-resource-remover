@@ -88,10 +88,11 @@ export const ec2list = async (json: ResourceDict | undefined, thisMonth: Date): 
     );
 
     // 月末削除
+    const find_tag = `${thisMonth.getFullYear()}${(thisMonth.getMonth() + 1).toString().padStart(2, '0')}`;
     message += await checkResource(
         json.remove.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1),
         remove_list,
-        (tags) => tags?.some(t => t?.Key === `${thisMonth.getFullYear()}${thisMonth.getMonth().toString().padStart(2, '0')}`)
+        (tags) => tags?.some(t => t.Key?.indexOf(find_tag) === 0)
     )
 
     // 期限超過削除
