@@ -5,6 +5,7 @@ import path from "path";
 import { messageDict, type ResourceDict } from "./constants";
 import { getThisMonth, send_message } from "./utility";
 import { ec2list } from "./ec2";
+import { rdsdblist } from "./rds";
 
 
 const bucket = process.env.S3_BUCKET ?? '';
@@ -16,11 +17,18 @@ export const handler: Handler = async (event, context): Promise<string> => {
     const { skipNotify } = event;
     const thisMonth = getThisMonth();
 
-    const ec2json = await tagcheck_specified_resourcetype(messageDict['resourcetype:ec2:instance_en'], thisMonth);
-    const ec2message = await ec2list(ec2json, thisMonth);
+    const [ec2message, rdsmessage] = await Promise.all([
+        tagcheck_specified_resourcetype(messageDict['resourcetype:ec2:instance_en'], thisMonth)
+        .then(ec2json => ec2list(ec2json, thisMonth)),
+        tagcheck_specified_resourcetype(messageDict['resourcetype:rds:db_en'], thisMonth)
+        .then(rdsjson => rdsdblist(rdsjson, thisMonth))
+    ]);
+
     console.log(ec2message);
+    console.log(rdsmessage);
+    
     if (!skipNotify) {
-        await send_message(ec2message);
+        await Promise.all([send_message(ec2message), send_message(rdsmessage)]);
     }
 
     return context.logStreamName;
