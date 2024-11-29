@@ -1,5 +1,15 @@
 import crypto from 'crypto';
 
+export const getThisMonth = (): Date => {
+    const now = new Date();
+    // UTC -> JST
+    now.setHours(now.getUTCHours() + 9, 59, 59, 999);
+    // 今月末の日付に変更
+    now.setMonth(now.getMonth() + 1);
+    now.setDate(0);
+    return now;
+}
+
 /**
  * 与えられたオブジェクトが有効な日付を含むかどうかを判定します。
  * 
