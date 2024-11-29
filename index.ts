@@ -19,11 +19,13 @@ export const handler: Handler = async (event, context): Promise<string> => {
 
     const [ec2message, rdsmessage, clustermessage] = await Promise.all([
         tagcheck_specified_resourcetype(messageDict['resourcetype:ec2:instance_en'], thisMonth)
-        .then(ec2json => ec2list(ec2json, thisMonth)),
+            .then(ec2json => ec2list(ec2json, thisMonth)),
         tagcheck_specified_resourcetype(messageDict['resourcetype:rds:db_en'], thisMonth)
-        .then(rdsjson => rdsdblist(rdsjson, thisMonth)),
+            .then(rdsjson => rdsdblist(
+                rdsjson, messageDict['resourcetype:rds:db'], thisMonth)),
         tagcheck_specified_resourcetype(messageDict['resourcetype:rds:cluster_en'], thisMonth)
-        .then(clusterjson => rdsdblist(clusterjson, thisMonth)),
+            .then(clusterjson => rdsdblist(
+                clusterjson, messageDict['resourcetype:rds:cluster'], thisMonth)),
     ]);
 
     console.log(ec2message);

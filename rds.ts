@@ -4,10 +4,10 @@ import { isBeforeThisMonth, isValidDate } from "./utility";
 import type { Resource } from "@aws-sdk/client-resource-explorer-2";
 import { fromEnv } from "@aws-sdk/credential-providers";
 
-export const rdsdblist = async (json: ResourceDict | undefined, thisMonth: Date): Promise<string> => {
-    if (!json) return '⚠️ RDSインスタンスの削除候補を取得できませんでした';
+export const rdsdblist = async (json: ResourceDict | undefined, resource_type: string, thisMonth: Date): Promise<string> => {
+    if (!json) return `⚠️ ${resource_type}の削除候補を取得できませんでした`;
 
-    let message = '# RDSインスタンスの削除';
+    let message = `# ${resource_type}の削除`;
     const empty_tag_list = '\n💡タグ無し削除\n';
     const remove_list = '\n💡月末削除\n';
     const over_list = '\n💡期限超過削除\n';
