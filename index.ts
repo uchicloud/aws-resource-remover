@@ -17,18 +17,24 @@ export const handler: Handler = async (event, context): Promise<string> => {
     const { skipNotify } = event;
     const thisMonth = getThisMonth();
 
-    const [ec2message, rdsmessage] = await Promise.all([
+    const [ec2message, rdsmessage, clustermessage] = await Promise.all([
         tagcheck_specified_resourcetype(messageDict['resourcetype:ec2:instance_en'], thisMonth)
         .then(ec2json => ec2list(ec2json, thisMonth)),
         tagcheck_specified_resourcetype(messageDict['resourcetype:rds:db_en'], thisMonth)
-        .then(rdsjson => rdsdblist(rdsjson, thisMonth))
+        .then(rdsjson => rdsdblist(rdsjson, thisMonth)),
+        tagcheck_specified_resourcetype(messageDict['resourcetype:rds:cluster_en'], thisMonth)
+        .then(clusterjson => rdsdblist(clusterjson, thisMonth)),
     ]);
 
     console.log(ec2message);
     console.log(rdsmessage);
-    
+    console.log(clustermessage);
+
     if (!skipNotify) {
-        await Promise.all([send_message(ec2message), send_message(rdsmessage)]);
+        await Promise.all([
+            send_message(ec2message),
+            send_message(rdsmessage),
+            send_message(clustermessage)]);
     }
 
     return context.logStreamName;
