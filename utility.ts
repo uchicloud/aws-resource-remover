@@ -92,20 +92,23 @@ export const isBeforeThisMonth = (obj: { [K: string]: string; }, thisMonth: Date
 };
 
 export const send_message = async (content: string) => {
-    const secret = process.env.DING_SECRET ?? '';
+    const secret = process.env.DING_SECRET;
     const endpoint = process.env.DING_ENDPOINT ?? '';
+    let url = endpoint;
 
-    const calcHmac = (time: number) => {
-        const sign = `${time}\n${secret}`;
-        const hmac = crypto.createHmac('sha256', secret);
-        hmac.update(sign);
-        const digest = hmac.digest('base64');
-        return encodeURIComponent(digest);
+    if (secret) {
+        const calcHmac = (time: number) => {
+            const sign = `${time}\n${secret}`;
+            const hmac = crypto.createHmac('sha256', secret);
+            hmac.update(sign);
+            const digest = hmac.digest('base64');
+            return encodeURIComponent(digest);
+        }
+    
+        const now = Date.now();
+        url += `&timestamp=${now}&sign=${calcHmac(now)}`;
     }
-
-    const now = Date.now();
-    const hmac = calcHmac(now);
-    const url = `${endpoint}&timestamp=${now}&sign=${hmac}`;
+    
     const message = {
         "msgtype": "text",
         "text": {
