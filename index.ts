@@ -33,10 +33,14 @@ export const handler: Handler = async (event, context): Promise<string> => {
     console.log(clustermessage);
 
     if (!skipNotify) {
-        await Promise.all([
-            send_message(ec2message),
-            send_message(rdsmessage),
-            send_message(clustermessage)]);
+        try {
+            await Promise.all([
+                send_message(ec2message),
+                send_message(rdsmessage),
+                send_message(clustermessage)]);
+        } catch (e) {
+            console.error(e);
+        }
     }
 
     return context.logStreamName;
