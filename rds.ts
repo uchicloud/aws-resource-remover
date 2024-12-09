@@ -42,6 +42,7 @@ export const rdsdblist = async (json: ResourceDict | undefined, resource_type: s
                 const res = await rdsClient.send(command);
                 res.DBInstances?.forEach(i => {
                     const tags = i.TagList;
+                    // 与えられたルールで検証する
                     if (checkLogic(tags)) {
                         target_found = true;
                         const id = i.DBInstanceIdentifier ?? '';
@@ -64,7 +65,7 @@ export const rdsdblist = async (json: ResourceDict | undefined, resource_type: s
             list += '💯対象無し\n';
         }
         return list;
-    }
+    };
 
     // タグ無し削除
     message += await checkResource(
@@ -79,21 +80,21 @@ export const rdsdblist = async (json: ResourceDict | undefined, resource_type: s
         json.remove.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1),
         remove_list,
         (tags) => tags?.some(t => t.Key?.indexOf(find_tag) === 0)
-    )
+    );
 
     // 期限超過削除
     message += await checkResource(
         json.over.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1),
         over_list,
         (tags) => tags?.some(t => isBeforeThisMonth((t as { [K: string]: string }), thisMonth))
-    )
+    );
 
     // エラー日付削除
     message += await checkResource(
         json.error.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1),
         error_list,
         (tags) => tags?.some(t => !isValidDate((t as { [K: string]: string })))
-    )
+    );
 
     return message;
 }

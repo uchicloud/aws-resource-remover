@@ -51,7 +51,7 @@ export const ec2list = async (json: ResourceDict | undefined, thisMonth: Date): 
                 res.Reservations?.forEach(r =>
                     r.Instances?.forEach(i => {
                         const tags = i.Tags;
-                        // Nameタグのみのリソース
+                        // 与えられたルールで検証する
                         if (checkLogic(tags)) {
                             target_found = true;
                             const id = i.InstanceId ?? '';
