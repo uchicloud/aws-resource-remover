@@ -91,6 +91,14 @@ export const isBeforeThisMonth = (obj: { [K: string]: string; }, thisMonth: Date
     }
 };
 
+
+/**
+ * 指定された内容のメッセージを送信します。
+ * 
+ * @param content - 送信するメッセージの内容
+ * @returns メッセージ送信の結果を含むJSONオブジェクト
+ * @throws メッセージの送信に失敗した場合にエラーをスローします
+ */
 export const send_message = async (content: string) => {
     const secret = process.env.DING_SECRET;
     const endpoint = process.env.DING_ENDPOINT ?? '';
@@ -108,7 +116,6 @@ export const send_message = async (content: string) => {
         const now = Date.now();
         url += `&timestamp=${now}&sign=${calcHmac(now)}`;
     }
-    
     const message = {
         "msgtype": "text",
         "text": {
@@ -126,9 +133,18 @@ export const send_message = async (content: string) => {
     });
 
     if (!res.ok) {
+        console.error(`Failed to send message: ${res.statusText}`);
         throw new Error(`Failed to send message: ${res.statusText}`);
     }
 
-    console.log('MESSAGE SENT: \n' + JSON.stringify(message, null, 2));
-    return res;
+    const json = await res.json();
+    console.log('RESPONSE: \n' + JSON.stringify(json));
+
+    if (json.errcode !== 0) {
+        console.error(`Message rejected by endpoint: ${json.errmsg}`);
+        throw new Error(`Message rejected by endpoint: ${json.errmsg}`);
+    }
+    console.log('MESSAGE SENT: \n' + JSON.stringify(message));
+    
+    return json;
 }
