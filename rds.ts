@@ -5,7 +5,8 @@ import type { Resource } from "@aws-sdk/client-resource-explorer-2";
 import { fromEnv } from "@aws-sdk/credential-providers";
 
 export const rdsdblist = async (json: ResourceDict | undefined, resource_type: string, thisMonth: Date): Promise<string> => {
-    if (!json) return `⚠️ ${resource_type}の削除候補を取得できませんでした`;
+    if (!json || !Object.entries(json).length)
+        return `⚠️ ${resource_type}の削除候補を取得できませんでした`;
 
     let message = `# ${resource_type}の削除`;
     const empty_tag_list = '\n💡タグ無し削除\n';
@@ -23,8 +24,8 @@ export const rdsdblist = async (json: ResourceDict | undefined, resource_type: s
     const checkResource = async (resources: Resource[], list: string, checkLogic: (tags: Tag[] | undefined) => boolean | undefined) => {
         let target_found = false;
 
-        // regionごとにinstance idを仕分け
-        for (const r of resources) {
+        // Regionでソートしてインスタンスを順次処理
+        for (const r of resources.sort((a, b) => a.Region?.localeCompare(b.Region ?? '') ?? 0)) {
             const region: string = r.Region ?? '';
             let id: string = r.Arn ?? '';
             // arnの末尾`i-[0-9a-z]{8,17}`を取得
@@ -32,7 +33,7 @@ export const rdsdblist = async (json: ResourceDict | undefined, resource_type: s
             if (match) id = match[0];
 
             const command = new DescribeDBInstancesCommand({
-                "DBInstanceIdentifier": id,
+                DBInstanceIdentifier: id,
             });
             const rdsClient = new RDSClient({
                 credentials: fromEnv(),
@@ -69,7 +70,7 @@ export const rdsdblist = async (json: ResourceDict | undefined, resource_type: s
 
     // タグ無し削除
     message += await checkResource(
-        json.emptyTag.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1),
+        json.emptyTag,
         empty_tag_list,
         (tags) => tags?.every(t => ignoreTags.includes(t?.Key ?? ''))
     );
@@ -77,21 +78,21 @@ export const rdsdblist = async (json: ResourceDict | undefined, resource_type: s
     // 月末削除
     const find_tag = `${thisMonth.getFullYear()}${(thisMonth.getMonth() + 1).toString().padStart(2, '0')}`;
     message += await checkResource(
-        json.remove.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1),
+        json.remove,
         remove_list,
         (tags) => tags?.some(t => t.Key?.indexOf(find_tag) === 0)
     );
 
     // 期限超過削除
     message += await checkResource(
-        json.over.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1),
+        json.over,
         over_list,
         (tags) => tags?.some(t => isBeforeThisMonth((t as { [K: string]: string }), thisMonth))
     );
 
     // エラー日付削除
     message += await checkResource(
-        json.error.sort((a, b) => (a.Region ?? '') >= (b.Region ?? '') ? 1 : -1),
+        json.error,
         error_list,
         (tags) => tags?.some(t => !isValidDate((t as { [K: string]: string })))
     );

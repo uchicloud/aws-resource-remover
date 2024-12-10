@@ -133,7 +133,6 @@ export const send_message = async (content: string) => {
     });
 
     if (!res.ok) {
-        console.error(`Failed to send message: ${res.statusText}`);
         throw new Error(`Failed to send message: ${res.statusText}`);
     }
 
@@ -141,7 +140,6 @@ export const send_message = async (content: string) => {
     console.log('RESPONSE: \n' + JSON.stringify(json));
 
     if (json.errcode !== 0) {
-        console.error(`Message rejected by endpoint: ${json.errmsg}`);
         throw new Error(`Message rejected by endpoint: ${json.errmsg}`);
     }
     console.log('MESSAGE SENT: \n' + JSON.stringify(message));
