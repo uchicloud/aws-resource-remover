@@ -99,7 +99,7 @@ export const isBeforeThisMonth = (obj: { [K: string]: string; }, thisMonth: Date
  * @returns メッセージ送信の結果を含むJSONオブジェクト
  * @throws メッセージの送信に失敗した場合にエラーをスローします
  */
-export const send_message = async (content: string) => {
+export const sendMessage = async (content: string) => {
     const secret = process.env.DING_SECRET;
     const endpoint = process.env.DING_ENDPOINT ?? '';
     let url = endpoint;
