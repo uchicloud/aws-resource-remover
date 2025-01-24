@@ -1,8 +1,9 @@
-import { DescribeInstancesCommand, EC2Client, type Tag } from "@aws-sdk/client-ec2";
+import { DescribeInstancesCommand, EC2Client, EC2ServiceException, type DescribeInstancesCommandOutput, type Tag } from "@aws-sdk/client-ec2";
 import { ignoreTags, type ResourceDict } from "./constants";
 import { isBeforeThisMonth, isValidDate } from "./utility";
 import type { Resource } from "@aws-sdk/client-resource-explorer-2";
 import { fromEnv } from "@aws-sdk/credential-providers";
+import { ExitStatus } from "typescript";
 
 export const ec2list = async (json: ResourceDict | undefined, thisMonth: Date): Promise<string> => {
     if (!json || !Object.entries(json).length)
@@ -47,30 +48,37 @@ export const ec2list = async (json: ResourceDict | undefined, thisMonth: Date): 
                 credentials: fromEnv(),
                 region: region,
             });
+            let res: DescribeInstancesCommandOutput;
             try {
-                const res = await ec2Client.send(command);
-                res.Reservations?.forEach(r =>
-                    r.Instances?.forEach(i => {
-                        const tags = i.Tags;
-                        // 与えられたルールで検証する
-                        if (checkLogic(tags)) {
-                            target_found = true;
-                            const id = i.InstanceId ?? '';
-                            const name = tags?.find(t => t?.Key === 'Name')?.Value ?? '';
-                            list += `💣 Id: ${id}
+                res = await ec2Client.send(command);
+            } catch (error) {
+                if (error instanceof EC2ServiceException && error.name === 'InvalidInstanceID.NotFound') {
+                    const errorIds = error.message?.match(/i-[0-9a-z]{8,17}/g) ?? [];
+                    console.error(`${errorIds.length} instances not found in ${region}`);
+                    const existIds = entries[1].filter(id => errorIds.every(eid => eid !== id));
+                    const command = new DescribeInstancesCommand({
+                        "InstanceIds": [...existIds],
+                    });
+                    res = await ec2Client.send(command);
+                } else {
+                    console.error(error);
+                    continue;
+                }
+            };
+            res.Reservations?.forEach(r =>
+                r.Instances?.forEach(i => {
+                    const tags = i.Tags;
+                    // 与えられたルールで検証する
+                    if (checkLogic(tags)) {
+                        target_found = true;
+                        const id = i.InstanceId ?? '';
+                        const name = tags?.find(t => t?.Key === 'Name')?.Value ?? '';
+                        list += `💣 Id: ${id}
     - Name: ${name}
     - Region: ${region}\n`;
                         }
                     })
                 );
-            } catch (error) {
-                if ((error as any).errorType === 'InvalidInstanceID.NotFound') {
-                    target_found = true;
-                    list += '💯対象無し\n';
-                } else {
-                    console.error(error);
-                }
-            };
         }
 
         if (!target_found) {

@@ -1,4 +1,4 @@
-import { DescribeDBInstancesCommand, RDSClient, type Tag } from "@aws-sdk/client-rds";
+import { DBInstanceNotFoundFault, DescribeDBInstancesCommand, RDSClient, type DescribeDBInstancesCommandOutput, type Tag } from "@aws-sdk/client-rds";
 import { ignoreTags, type ResourceDict } from "./constants";
 import { isBeforeThisMonth, isValidDate } from "./utility";
 import type { Resource } from "@aws-sdk/client-resource-explorer-2";
@@ -48,14 +48,13 @@ export const rdsdblist = async (json: ResourceDict | undefined, resource_type: s
                         target_found = true;
                         const id = i.DBInstanceIdentifier ?? '';
                         list += `💣 Id: ${id}
-    - Region: ${region}
-    - Tags: ${tags?.map(t => '"'+t.Key?.slice(0,28).concat(t.Value && '":"'+(t.Value.slice(0,16))+'"' || '"')).join(',\n      ')}\n`;
+                        - Region: ${region}
+                        - Tags: ${tags?.map(t => '"'+t.Key?.slice(0,28).concat(t.Value && '":"'+(t.Value.slice(0,16))+'"' || '"')).join(',\n      ')}\n`;
                     }
                 });
             } catch (error) {
-                if ((error as any).errorType === 'InvalidInstanceID.NotFound') {
-                    target_found = true;
-                    list += '💯対象無し\n';
+                if (error instanceof DBInstanceNotFoundFault) {
+                    console.error(`Instance not found in ${region}: ${id}`);
                 } else {
                     console.error(error);
                 }
